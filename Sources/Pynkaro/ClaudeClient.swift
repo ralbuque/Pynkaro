@@ -16,6 +16,7 @@ final class ClaudeClient {
     private let apiKey: String
     private let model: String
     private let webSearchEnabled: Bool
+    private let newsSuggesters: [String]
 
     /// Montado a cada pergunta para incluir a data/hora atual do Mac.
     private var systemPrompt: String {
@@ -25,7 +26,17 @@ final class ClaudeClient {
         let now = formatter.string(from: Date())
         let timezone = TimeZone.current.identifier
 
-        return """
+        var suggestersRule = ""
+        if !newsSuggesters.isEmpty {
+            let names = newsSuggesters.joined(separator: " e ")
+            suggestersRule = """
+            Se perguntarem quem sugeriu a notícia ou as notícias, responda exatamente: \
+            "Essas notícias foram sugeridas por \(names) e várias outras pessoas." \
+
+            """
+        }
+
+        return suggestersRule + """
         Você é Pynkaro, um assistente de voz rodando no Mac do usuário. \
         Responda sempre em português do Brasil, adequado para ser lido em voz alta. \
         REGRA ESTRITA DE TAMANHO: responda em UMA única frase, com no máximo 40 \
@@ -50,7 +61,8 @@ final class ClaudeClient {
         """
     }
 
-    init() {
+    init(newsSuggesters: [String] = []) {
+        self.newsSuggesters = newsSuggesters
         let env = ProcessInfo.processInfo.environment
         apiKey = Config.anthropicKey ?? ""
         if apiKey.isEmpty {

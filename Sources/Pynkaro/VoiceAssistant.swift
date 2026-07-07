@@ -30,8 +30,13 @@ final class VoiceAssistant: NSObject {
         }
         return Speaker()
     }()
-    private let claude = ClaudeClient()
+    private let claude: ClaudeClient
     private lazy var avatar = AvatarWindow()
+
+    init(newsSuggesters: [String] = []) {
+        claude = ClaudeClient(newsSuggesters: newsSuggesters)
+        super.init()
+    }
 
     private var lastTranscript = ""
     private var question = ""
