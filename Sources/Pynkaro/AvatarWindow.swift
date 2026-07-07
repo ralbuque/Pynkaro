@@ -12,9 +12,18 @@ final class AvatarWindow {
     private var window: NSWindow?
     private var imageView: NSImageView?
     /// Sprites por nível de boca: 0 = fechada (avatar.png),
-    /// 1 = entreaberta (avatar_mid.png), 2 = aberta (avatar_open.png).
+    /// 1 = entreaberta (avatar_mid.png), 2 = aberta (avatar_open.png),
+    /// 3 = arredondada o/u (avatar_round.png), 4 = f/v (avatar_fv.png).
+    /// Os níveis 3 e 4 são opcionais; sem eles, caem no sprite mais próximo.
     private var sprites: [Int: NSImage] = [:]
     private var currentLevel = 0
+    private static let fallbackChains: [Int: [Int]] = [
+        0: [0],
+        1: [1, 2, 0],
+        2: [2, 1, 0],
+        3: [3, 1, 2, 0],
+        4: [4, 1, 2, 0]
+    ]
 
     /// Posições da imagem DENTRO da janela (a janela fica fixa; quem sobe é a view).
     private var viewStartOrigin = NSPoint.zero  // escondida abaixo, recortada
@@ -29,9 +38,12 @@ final class AvatarWindow {
         sprites[0] = image
         if let mid = AvatarWindow.loadImage(named: "avatar_mid") { sprites[1] = mid }
         if let open = AvatarWindow.loadImage(named: "avatar_open") { sprites[2] = open }
+        if let round = AvatarWindow.loadImage(named: "avatar_round") { sprites[3] = round }
+        if let fv = AvatarWindow.loadImage(named: "avatar_fv") { sprites[4] = fv }
         if sprites.count == 1 {
             print("💋 Para animar a boca, adicione avatar_mid.png (entreaberta) e")
-            print("   avatar_open.png (aberta) junto do avatar.png.")
+            print("   avatar_open.png (aberta) junto do avatar.png. Opcionais:")
+            print("   avatar_round.png (o/u) e avatar_fv.png (f/v) para mais realismo.")
         }
 
         // Redimensiona mantendo a proporção, com lado maior de 600 pt.
@@ -96,18 +108,22 @@ final class AvatarWindow {
         return nil
     }
 
-    /// Troca o sprite da boca (0 = fechada, 1 = entreaberta, 2 = aberta).
-    /// Sem os sprites extras, é um no-op e o avatar fica estático.
+    /// Troca o sprite da boca (0 fechada, 1 entreaberta, 2 aberta,
+    /// 3 arredondada, 4 f/v). Sem os sprites extras, usa o mais próximo
+    /// disponível; sem nenhum, é um no-op e o avatar fica estático.
     func setMouth(_ level: Int) {
         DispatchQueue.main.async {
             guard self.sprites.count > 1, let view = self.imageView else { return }
-            let clamped = max(0, min(2, level))
+            let clamped = max(0, min(4, level))
             guard clamped != self.currentLevel else { return }
             self.currentLevel = clamped
-            // Usa o sprite mais próximo disponível (ex.: sem "mid", usa "open").
-            view.image = self.sprites[clamped]
-                ?? self.sprites[clamped == 1 ? 2 : 1]
-                ?? self.sprites[0]
+            let chain = AvatarWindow.fallbackChains[clamped] ?? [0]
+            for index in chain {
+                if let sprite = self.sprites[index] {
+                    view.image = sprite
+                    break
+                }
+            }
         }
     }
 
