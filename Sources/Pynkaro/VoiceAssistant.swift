@@ -31,6 +31,7 @@ final class VoiceAssistant: NSObject {
         return Speaker()
     }()
     private let claude = ClaudeClient()
+    private lazy var avatar = AvatarWindow()
 
     private var lastTranscript = ""
     private var question = ""
@@ -68,6 +69,11 @@ final class VoiceAssistant: NSObject {
         // Favorece a wake word na transcrição (palavra rara no dia a dia).
         recognizer.contextualStrings = wakeWords
 
+        // Anima a boca do avatar conforme o volume/ritmo da fala.
+        speaker.onMouthLevel = { [weak self] level in
+            self?.avatar.setMouth(level)
+        }
+
         recognizer.onPartial = { [weak self] text in
             DispatchQueue.main.async { self?.handlePartial(text) }
         }
@@ -103,6 +109,7 @@ final class VoiceAssistant: NSObject {
     /// Recupera a escuta após um erro do reconhecedor (ex.: timeout de sessão).
     private func recoverListening() {
         guard state == .waitingWakeWord || state == .capturingQuestion else { return }
+        if state == .capturingQuestion { avatar.hide() }
         state = .waitingWakeWord
         silenceTimer?.invalidate()
         question = ""
@@ -122,6 +129,7 @@ final class VoiceAssistant: NSObject {
             }) {
                 state = .capturingQuestion
                 print("🎤 Pode falar...")
+                avatar.show()
                 updateQuestion(from: text)
             }
         case .capturingQuestion:
@@ -169,6 +177,7 @@ final class VoiceAssistant: NSObject {
 
         guard !q.isEmpty else {
             print("😴 Nenhuma pergunta detectada. Voltando a aguardar.")
+            avatar.hide()
             state = .waitingWakeWord
             restartListening()
             return
@@ -196,6 +205,7 @@ final class VoiceAssistant: NSObject {
         // A escuta fica parada enquanto fala — evita que o assistente ouça a si mesmo.
         speaker.speak(reply) { [weak self] in
             guard let self else { return }
+            self.avatar.hide()
             self.state = .waitingWakeWord
             print("👂 Aguardando \"\(wakeWords[0])\"...")
             self.restartListening()

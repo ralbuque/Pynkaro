@@ -3,15 +3,21 @@ import AVFoundation
 
 /// Interface comum para os sintetizadores de voz (local ou nuvem).
 protocol Speaking: AnyObject {
+    /// Nível de abertura da boca do avatar durante a fala:
+    /// 0 = fechada, 1 = entreaberta, 2 = aberta.
+    var onMouthLevel: ((Int) -> Void)? { get set }
     func speak(_ text: String, completion: @escaping () -> Void)
 }
 
 /// Converte texto em fala com a voz pt-BR do sistema.
 final class Speaker: NSObject, Speaking, AVSpeechSynthesizerDelegate {
 
+    var onMouthLevel: ((Int) -> Void)?
+
     private let synthesizer = AVSpeechSynthesizer()
     private let voice: AVSpeechSynthesisVoice?
     private var completion: (() -> Void)?
+    private var mouthCloseTimer: Timer?
 
     override init() {
         voice = Speaker.bestVoice()
@@ -61,7 +67,25 @@ final class Speaker: NSObject, Speaking, AVSpeechSynthesizerDelegate {
     private func finish() {
         let callback = completion
         completion = nil
-        DispatchQueue.main.async { callback?() }
+        DispatchQueue.main.async {
+            self.mouthCloseTimer?.invalidate()
+            self.onMouthLevel?(0)
+            callback?()
+        }
+    }
+
+    /// O AVSpeechSynthesizer não expõe medição de volume; usa o evento
+    /// "vai falar este trecho" (aprox. por palavra) para abrir e fechar a boca.
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
+                           willSpeakRangeOfSpeechString characterRange: NSRange,
+                           utterance: AVSpeechUtterance) {
+        DispatchQueue.main.async {
+            self.onMouthLevel?(Int.random(in: 1...2))
+            self.mouthCloseTimer?.invalidate()
+            self.mouthCloseTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
+                self?.onMouthLevel?(0)
+            }
+        }
     }
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {

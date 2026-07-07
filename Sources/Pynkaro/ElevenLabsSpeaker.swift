@@ -5,6 +5,8 @@ import AVFoundation
 /// Em caso de falha na API, usa a voz do sistema como fallback.
 final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
 
+    var onMouthLevel: ((Int) -> Void)?
+
     private let apiKey: String
     private let voiceId: String
     private let model: String
@@ -13,6 +15,7 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
     private lazy var fallback = Speaker()
     private var player: AVAudioPlayer?
     private var completion: (() -> Void)?
+    private var meterTimer: Timer?
 
     init(apiKey: String) {
         let env = ProcessInfo.processInfo.environment
@@ -64,8 +67,10 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
                 do {
                     let player = try AVAudioPlayer(data: data)
                     player.delegate = self
+                    player.isMeteringEnabled = true
                     self.player = player
                     player.play()
+                    self.startMetering()
                 } catch {
                     print("⚠️ Falha ao tocar o áudio: \(error.localizedDescription)")
                     self.fallbackSpeak(text)
@@ -74,14 +79,41 @@ final class ElevenLabsSpeaker: NSObject, Speaking, AVAudioPlayerDelegate {
         }.resume()
     }
 
+    /// Mede o volume do áudio ~30x por segundo e converte em nível de boca.
+    private func startMetering() {
+        meterTimer?.invalidate()
+        meterTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            guard let self, let player = self.player, player.isPlaying else { return }
+            player.updateMeters()
+            let db = player.averagePower(forChannel: 0) // -160 (silêncio) a 0 dB
+            let level: Int
+            if db > -18 {
+                level = 2
+            } else if db > -32 {
+                level = 1
+            } else {
+                level = 0
+            }
+            self.onMouthLevel?(level)
+        }
+    }
+
+    private func stopMetering() {
+        meterTimer?.invalidate()
+        meterTimer = nil
+        onMouthLevel?(0)
+    }
+
     private func fallbackSpeak(_ text: String) {
         print("   Usando a voz do sistema como fallback.")
+        fallback.onMouthLevel = onMouthLevel
         let callback = completion
         completion = nil
         fallback.speak(text) { callback?() }
     }
 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        stopMetering()
         self.player = nil
         let callback = completion
         completion = nil

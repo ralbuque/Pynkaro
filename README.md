@@ -56,6 +56,12 @@ Chaves de API: no `config.json` (ver "Como rodar"). Demais ajustes, por variáve
 | `PYNKARO_WEB_SEARCH` | `1` (ligada) | `0` desativa a busca na web |
 | `PYNKARO_WAKE_WORD` | `pincaro` | wake word (sem precisar recompilar; acentos e maiúsculas são ignorados) |
 
+### Avatar na tela
+
+Salve a imagem do assistente como `avatar.png` na raiz do projeto (ou em `~/.config/pynkaro/avatar.png`) — PNG com fundo transparente fica melhor. O avatar aparece com fade no canto inferior direito quando a wake word é detectada e some quando a resposta termina. A janela flutua acima das outras, não rouba o foco e deixa os cliques passarem. Sem o arquivo, o app apenas avisa e segue sem avatar.
+
+**Boca animada (lip sync por amplitude):** adicione mais dois PNGs na mesma pasta, idênticos ao avatar.png exceto pela boca — `avatar_mid.png` (entreaberta) e `avatar_open.png` (aberta), nas mesmas dimensões. Com a voz da ElevenLabs, o app mede o volume do áudio ~30x por segundo e troca os sprites conforme a amplitude; com a voz do sistema, abre e fecha a boca no ritmo das palavras. Sem os sprites extras, o avatar fica estático (sem erro). Dica: gere as variações com um editor de imagens por IA pedindo "mesma imagem, apenas boca entreaberta/aberta".
+
 ### Busca na web
 
 O app habilita a ferramenta de busca da própria API da Anthropic (`web_search`): o Claude decide quando pesquisar e responde com dados atuais (notícias, cotações, clima etc.). A busca roda nos servidores da Anthropic — nada muda no app. Custo: US$ 10 por 1.000 buscas, além dos tokens; limitado a 3 buscas por pergunta (`max_uses`). Perguntas que exigem busca demoram alguns segundos a mais.
