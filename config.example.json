@@ -1,0 +1,4 @@
+{
+  "anthropic_api_key": "<CHAVE_API_ANTHROPIC>",
+  "elevenlabs_api_key": "<CHAVE_API_ELEVENLABS>"
+}

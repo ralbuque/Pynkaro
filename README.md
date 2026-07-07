@@ -16,11 +16,23 @@ Protótipo de linha de comando. Fica ouvindo o microfone; ao ouvir **"Píncaro"*
 
 ## Como rodar
 
+1. Copie `config.example.json` para `config.json` e preencha as chaves (o arquivo está no `.gitignore`, não vai em commits):
+
+```json
+{
+  "anthropic_api_key": "sk-ant-...",
+  "elevenlabs_api_key": "..."
+}
+```
+
+2. Compile e rode:
+
 ```bash
 cd ~/Git/Pynkaro
-export ANTHROPIC_API_KEY=sk-ant-...
 swift run -c release
 ```
+
+O `config.json` é procurado no diretório atual e depois em `~/.config/pynkaro/config.json`. As variáveis de ambiente `ANTHROPIC_API_KEY`/`ELEVENLABS_API_KEY` seguem funcionando como fallback para campos vazios.
 
 Na primeira execução o macOS pedirá permissão de **Microfone** e **Reconhecimento de Fala** para o Terminal. Se os diálogos não aparecerem, habilite manualmente em Ajustes do Sistema > Privacidade e Segurança.
 
@@ -33,12 +45,12 @@ Na primeira execução o macOS pedirá permissão de **Microfone** e **Reconheci
 
 ## Configuração
 
+Chaves de API: no `config.json` (ver "Como rodar"). Demais ajustes, por variável de ambiente:
+
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | obrigatória |
 | `PYNKARO_MODEL` | `claude-sonnet-5` | modelo da API Anthropic |
 | `PYNKARO_VOICE` | melhor voz masculina pt-BR instalada | nome da voz do sistema (ex.: `Felipe (Aprimorada)`) |
-| `ELEVENLABS_API_KEY` | — | se definida, usa TTS da ElevenLabs em vez da voz do sistema |
 | `ELEVENLABS_VOICE_ID` | `9yzdeviXkFddZ4Oz8Mok` (Lutz, masculina, risonha) | voz da ElevenLabs — a Lutz vem da Voice Library: adicione-a em My Voices na sua conta antes de usar |
 | `ELEVENLABS_MODEL` | `eleven_multilingual_v2` | use `eleven_flash_v2_5` para menor latência |
 | `PYNKARO_WEB_SEARCH` | `1` (ligada) | `0` desativa a busca na web |

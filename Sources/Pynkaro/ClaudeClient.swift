@@ -52,7 +52,10 @@ final class ClaudeClient {
 
     init() {
         let env = ProcessInfo.processInfo.environment
-        apiKey = env["ANTHROPIC_API_KEY"] ?? ""
+        apiKey = Config.anthropicKey ?? ""
+        if apiKey.isEmpty {
+            print("⚠️ Chave da Anthropic ausente: preencha anthropic_api_key no config.json.")
+        }
         model = env["PYNKARO_MODEL"] ?? "claude-sonnet-5"
         webSearchEnabled = env["PYNKARO_WEB_SEARCH"] != "0"
         if webSearchEnabled {

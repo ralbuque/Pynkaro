@@ -1,0 +1,6 @@
+config.json
+.build/
+.DS_Store
+*.xcodeproj
+.swiftpm/
+.vscode/

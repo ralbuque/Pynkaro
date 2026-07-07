@@ -25,9 +25,7 @@ final class VoiceAssistant: NSObject {
     private var state: State = .waitingWakeWord
     private let recognizer = SpeechRecognizer()
     private let speaker: Speaking = {
-        let env = ProcessInfo.processInfo.environment
-        let key = env["ELEVENLABS_API_KEY"] ?? ""
-        if key != "" {
+        if let key = Config.elevenLabsKey {
             return ElevenLabsSpeaker(apiKey: key)
         }
         return Speaker()
