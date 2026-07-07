@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Pynkaro}",
+            "name": "Debug Pynkaro",
+            "target": "Pynkaro",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Pynkaro"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Pynkaro}",
+            "name": "Release Pynkaro",
+            "target": "Pynkaro",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Pynkaro"
+        }
+    ]
+}
