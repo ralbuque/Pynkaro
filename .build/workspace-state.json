@@ -1,10 +1,45 @@
 {
   "object" : {
     "artifacts" : [
+      {
+        "kind" : {
+          "xcframework" : {
 
+          }
+        },
+        "packageRef" : {
+          "identity" : "rive-ios",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/rive-app/rive-ios",
+          "name" : "RiveRuntime"
+        },
+        "path" : "/Users/ricardoalbuquerque/Git/Pynkaro/.build/artifacts/rive-ios/RiveRuntime/RiveRuntime.xcframework",
+        "source" : {
+          "checksum" : "a44ceea0b094d22a9e16fdb94ea463411685e5a697a45d14d5d73438430ef4f8",
+          "type" : "remote",
+          "url" : "https://github.com/rive-app/rive-ios/releases/download/6.21.0/RiveRuntime.xcframework.zip"
+        },
+        "targetName" : "RiveRuntime"
+      }
     ],
     "dependencies" : [
-
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "rive-ios",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/rive-app/rive-ios",
+          "name" : "RiveRuntime"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "9367a18e307aea11b9f4cbf973febf3fc6edd814",
+            "version" : "6.21.0"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "rive-ios"
+      }
     ],
     "prebuilts" : [
 

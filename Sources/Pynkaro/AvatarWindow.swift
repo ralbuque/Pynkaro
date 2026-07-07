@@ -1,22 +1,32 @@
 import AppKit
 import QuartzCore
+import RiveRuntime
 
 /// Janela flutuante, sem borda e transparente, que mostra o avatar no canto
 /// inferior direito da tela enquanto o assistente está ativo (ouvindo,
 /// pensando ou falando). Entrada: o avatar sobe de baixo para cima; saída: fade.
 ///
-/// A imagem é carregada de "avatar.png" no diretório atual (raiz do projeto)
-/// ou de ~/.config/pynkaro/avatar.png. PNG com fundo transparente fica melhor.
+/// Dois modos de renderização, escolhidos na inicialização:
+///  1. Rig Rive: se existir "avatar.riv" (raiz do projeto ou ~/.config/pynkaro/),
+///     a boca é dirigida por um input numérico do state machine (0 a 4).
+///  2. Sprites PNG: "avatar.png" + variações de boca (comportamento anterior).
 final class AvatarWindow {
 
+    private enum Renderer {
+        case sprites
+        case rive
+    }
+
     private var window: NSWindow?
+    private var renderer: Renderer = .sprites
+    private var currentLevel = 0
+
+    // MARK: Modo sprites
     private var imageView: NSImageView?
     /// Sprites por nível de boca: 0 = fechada (avatar.png),
     /// 1 = entreaberta (avatar_mid.png), 2 = aberta (avatar_open.png),
     /// 3 = arredondada o/u (avatar_round.png), 4 = f/v (avatar_fv.png).
-    /// Os níveis 3 e 4 são opcionais; sem eles, caem no sprite mais próximo.
     private var sprites: [Int: NSImage] = [:]
-    private var currentLevel = 0
     private static let fallbackChains: [Int: [Int]] = [
         0: [0],
         1: [1, 2, 0],
@@ -25,14 +35,38 @@ final class AvatarWindow {
         4: [4, 1, 2, 0]
     ]
 
-    /// Posições da imagem DENTRO da janela (a janela fica fixa; quem sobe é a view).
-    private var viewStartOrigin = NSPoint.zero  // escondida abaixo, recortada
-    private var viewFinalOrigin = NSPoint.zero  // posição visível
+    // MARK: Modo Rive
+    private var riveViewModel: RiveViewModel?
+    /// Nome do input numérico do state machine que recebe o nível da boca (0-4).
+    private static let riveInputName =
+        ProcessInfo.processInfo.environment["PYNKARO_RIVE_INPUT"] ?? "mouth"
+
+    // MARK: Animação de entrada
+    /// Posições da view DENTRO da janela (a janela fica fixa; quem sobe é a view).
+    private weak var animatedView: NSView?
+    private var viewStartOrigin = NSPoint.zero
+    private var viewFinalOrigin = NSPoint.zero
 
     init() {
+        // 1) Rig Rive, se avatar.riv existir.
+        if let url = AvatarWindow.locateFile("avatar.riv") {
+            if let viewModel = AvatarWindow.makeRiveViewModel(url: url) {
+                renderer = .rive
+                riveViewModel = viewModel
+                let size = NSSize(width: 600, height: 600)
+                let riveView = viewModel.createRiveView()
+                riveView.frame = NSRect(origin: .zero, size: size)
+                configureWindow(with: riveView, size: size)
+                print("🎭 Avatar Rive carregado (avatar.riv), input \"\(AvatarWindow.riveInputName)\".")
+                return
+            }
+            print("   Tentando o modo de sprites PNG...")
+        }
+
+        // 2) Sprites PNG.
         guard let image = AvatarWindow.loadImage(named: "avatar") else {
-            print("⚠️ avatar.png não encontrado (raiz do projeto ou ~/.config/pynkaro/);")
-            print("   o avatar não será exibido.")
+            print("⚠️ Nem avatar.riv nem avatar.png encontrados (raiz do projeto ou")
+            print("   ~/.config/pynkaro/); o avatar não será exibido.")
             return
         }
         sprites[0] = image
@@ -51,8 +85,16 @@ final class AvatarWindow {
         let scale = min(maxSide / image.size.width, maxSide / image.size.height)
         let size = NSSize(width: image.size.width * scale, height: image.size.height * scale)
 
-        // A janela é um pouco mais alta que a imagem, ancorada na borda
-        // inferior da tela; a imagem começa abaixo dela (recortada) e sobe.
+        let imageView = NSImageView(frame: NSRect(origin: .zero, size: size))
+        imageView.image = image
+        imageView.imageScaling = .scaleProportionallyUpOrDown
+        self.imageView = imageView
+        configureWindow(with: imageView, size: size)
+    }
+
+    /// Monta a janela (fixa, na borda inferior direita) e o container com
+    /// recorte dentro do qual a view do avatar sobe na entrada.
+    private func configureWindow(with view: NSView, size: NSSize) {
         let margin: CGFloat = 24
         let windowSize = NSSize(width: size.width, height: size.height + margin)
 
@@ -76,13 +118,10 @@ final class AvatarWindow {
 
         viewStartOrigin = NSPoint(x: 0, y: -size.height)
         viewFinalOrigin = NSPoint(x: 0, y: margin)
-
-        let imageView = NSImageView(frame: NSRect(origin: viewStartOrigin, size: size))
-        imageView.image = image
-        imageView.imageScaling = .scaleProportionallyUpOrDown
-        container.addSubview(imageView)
+        view.setFrameOrigin(viewStartOrigin)
+        container.addSubview(view)
         window.contentView = container
-        self.imageView = imageView
+        animatedView = view
 
         // Canto inferior direito da tela principal.
         if let screen = NSScreen.main {
@@ -94,50 +133,77 @@ final class AvatarWindow {
         self.window = window
     }
 
-    private static func loadImage(named name: String) -> NSImage? {
+    // MARK: - Carregamento de arquivos
+
+    private static func locateFile(_ name: String) -> URL? {
         let fm = FileManager.default
         let candidates = [
-            URL(fileURLWithPath: fm.currentDirectoryPath).appendingPathComponent("\(name).png"),
-            fm.homeDirectoryForCurrentUser.appendingPathComponent(".config/pynkaro/\(name).png")
+            URL(fileURLWithPath: fm.currentDirectoryPath).appendingPathComponent(name),
+            fm.homeDirectoryForCurrentUser.appendingPathComponent(".config/pynkaro/\(name)")
         ]
-        for url in candidates where fm.fileExists(atPath: url.path) {
-            if let image = NSImage(contentsOf: url) {
-                return image
-            }
-        }
-        return nil
+        return candidates.first { fm.fileExists(atPath: $0.path) }
     }
 
-    /// Troca o sprite da boca (0 fechada, 1 entreaberta, 2 aberta,
-    /// 3 arredondada, 4 f/v). Sem os sprites extras, usa o mais próximo
-    /// disponível; sem nenhum, é um no-op e o avatar fica estático.
+    private static func loadImage(named name: String) -> NSImage? {
+        guard let url = locateFile("\(name).png") else { return nil }
+        return NSImage(contentsOf: url)
+    }
+
+    private static func makeRiveViewModel(url: URL) -> RiveViewModel? {
+        do {
+            let data = try Data(contentsOf: url)
+            let riveFile = try RiveFile(byteArray: [UInt8](data), loadCdn: false)
+            let model = RiveModel(riveFile: riveFile)
+            let stateMachine = ProcessInfo.processInfo.environment["PYNKARO_RIVE_STATE_MACHINE"]
+                ?? "State Machine 1"
+            return RiveViewModel(model, stateMachineName: stateMachine)
+        } catch {
+            print("⚠️ Falha ao carregar avatar.riv: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    // MARK: - Boca
+
+    /// Ajusta a boca (0 fechada, 1 entreaberta, 2 aberta, 3 arredondada, 4 f/v).
+    /// No modo Rive, envia o valor ao input numérico do state machine;
+    /// no modo sprites, troca a imagem pelo sprite mais próximo disponível.
     func setMouth(_ level: Int) {
         DispatchQueue.main.async {
-            guard self.sprites.count > 1, let view = self.imageView else { return }
             let clamped = max(0, min(4, level))
             guard clamped != self.currentLevel else { return }
             self.currentLevel = clamped
-            let chain = AvatarWindow.fallbackChains[clamped] ?? [0]
-            for index in chain {
-                if let sprite = self.sprites[index] {
-                    view.image = sprite
-                    break
+
+            switch self.renderer {
+            case .rive:
+                self.riveViewModel?.setInput(AvatarWindow.riveInputName,
+                                             value: Double(clamped))
+            case .sprites:
+                guard self.sprites.count > 1, let view = self.imageView else { return }
+                let chain = AvatarWindow.fallbackChains[clamped] ?? [0]
+                for index in chain {
+                    if let sprite = self.sprites[index] {
+                        view.image = sprite
+                        break
+                    }
                 }
             }
         }
     }
 
+    // MARK: - Entrada e saída
+
     func show() {
         guard let window else { return }
         DispatchQueue.main.async {
-            // Reposiciona a imagem embaixo (recortada) e sobe até a posição final.
-            self.imageView?.setFrameOrigin(self.viewStartOrigin)
+            // Reposiciona a view embaixo (recortada) e sobe até a posição final.
+            self.animatedView?.setFrameOrigin(self.viewStartOrigin)
             window.alphaValue = 1
             window.orderFrontRegardless()
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.45
                 context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                self.imageView?.animator().setFrameOrigin(self.viewFinalOrigin)
+                self.animatedView?.animator().setFrameOrigin(self.viewFinalOrigin)
             }
         }
     }
@@ -151,11 +217,8 @@ final class AvatarWindow {
             }, completionHandler: {
                 window.orderOut(nil)
                 // Garante boca fechada e posição inicial na próxima aparição.
-                self.currentLevel = 0
-                if let base = self.sprites[0] {
-                    self.imageView?.image = base
-                }
-                self.imageView?.setFrameOrigin(self.viewStartOrigin)
+                self.setMouth(0)
+                self.animatedView?.setFrameOrigin(self.viewStartOrigin)
             })
         }
     }

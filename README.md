@@ -62,6 +62,17 @@ Salve a imagem do assistente como `avatar.png` na raiz do projeto (ou em `~/.con
 
 **Boca animada (lip sync por visemas):** com a voz da ElevenLabs, o app usa o endpoint `with-timestamps`, que devolve o áudio junto com o instante exato de cada caractere. As letras viram formatos de boca sincronizados: a → aberta, e/i e consoantes → entreaberta, o/u → arredondada, m/b/p → fechada, f/v → lábio-dental; pausas fecham a boca. Sprites, na mesma pasta e dimensões do avatar.png: `avatar_mid.png` (entreaberta) e `avatar_open.png` (aberta) são os essenciais; `avatar_round.png` (o/u) e `avatar_fv.png` (f/v) são opcionais — sem eles, o app usa o sprite mais próximo. Se a resposta vier sem timestamps, cai automaticamente no modo por amplitude (volume); com a voz do sistema, a boca segue o ritmo das palavras. Sem sprites extras, o avatar fica estático (sem erro). Dica: gere as variações com um editor de imagens por IA pedindo "mesma imagem, apenas boca X".
 
+### Avatar com rig 2D (Rive)
+
+Alternativa aos sprites: um rig animado feito no [editor da Rive](https://rive.app). Se existir `avatar.riv` na raiz do projeto (ou `~/.config/pynkaro/`), ele é usado no lugar dos PNGs. O app envia o nível de boca (0 a 4) a um input numérico do state machine — animações de idle (piscar, respirar) rodam por conta do próprio rig.
+
+Contrato esperado no arquivo .riv (nomes configuráveis por env):
+
+| Elemento | Nome padrão | Env var |
+|---|---|---|
+| State machine | `State Machine 1` | `PYNKARO_RIVE_STATE_MACHINE` |
+| Input numérico da boca | `mouth` (0=fechada, 1=entreaberta, 2=aberta, 3=o/u, 4=f/v) | `PYNKARO_RIVE_INPUT` |
+
 ### Busca na web
 
 O app habilita a ferramenta de busca da própria API da Anthropic (`web_search`): o Claude decide quando pesquisar e responde com dados atuais (notícias, cotações, clima etc.). A busca roda nos servidores da Anthropic — nada muda no app. Custo: US$ 10 por 1.000 buscas, além dos tokens; limitado a 3 buscas por pergunta (`max_uses`). Perguntas que exigem busca demoram alguns segundos a mais.
