@@ -22,7 +22,15 @@ final class VoiceAssistant: NSObject {
         return ["pincaro"]
     }()
 
-    private var state: State = .waitingWakeWord
+    /// Notifica a interface (menu bar) sobre mudanças de estado.
+    var onStatusChange: ((AssistantStatus) -> Void)?
+
+    private var state: State = .waitingWakeWord {
+        didSet { emitStatus() }
+    }
+    private var isPaused = false {
+        didSet { emitStatus() }
+    }
     private let recognizer = SpeechRecognizer()
     private let speaker: Speaking = {
         if let key = Config.elevenLabsKey {
@@ -30,12 +38,44 @@ final class VoiceAssistant: NSObject {
         }
         return Speaker()
     }()
-    private let claude: ClaudeClient
+    private let claude = ClaudeClient()
     private lazy var avatar = AvatarWindow()
 
-    init(newsSuggesters: [String] = []) {
-        claude = ClaudeClient(newsSuggesters: newsSuggesters)
-        super.init()
+    private func emitStatus() {
+        let status: AssistantStatus
+        if isPaused {
+            status = .paused
+        } else {
+            switch state {
+            case .waitingWakeWord:   status = .waiting
+            case .capturingQuestion: status = .listening
+            case .thinking:          status = .thinking
+            case .speaking:          status = .speaking
+            }
+        }
+        onStatusChange?(status)
+    }
+
+    // MARK: - Pausa (menu bar)
+
+    /// Interrompe a escuta sem encerrar o app.
+    func pause() {
+        guard !isPaused else { return }
+        silenceTimer?.invalidate()
+        recognizer.stopListening()
+        avatar.hide()
+        question = ""
+        lastTranscript = ""
+        state = .waitingWakeWord
+        isPaused = true
+        print("⏸️ Escuta pausada.")
+    }
+
+    func resume() {
+        guard isPaused else { return }
+        isPaused = false
+        print("👂 Escuta retomada. Aguardando \"\(wakeWords[0])\"...")
+        restartListening()
     }
 
     private var lastTranscript = ""
@@ -89,10 +129,11 @@ final class VoiceAssistant: NSObject {
         // O SFSpeechRecognizer limita sessões a ~1 minuto:
         // reinicia a escuta periodicamente enquanto aguarda a wake word.
         Timer.scheduledTimer(withTimeInterval: 45, repeats: true) { [weak self] _ in
-            guard let self, self.state == .waitingWakeWord else { return }
+            guard let self, self.state == .waitingWakeWord, !self.isPaused else { return }
             self.restartListening()
         }
 
+        emitStatus()
         restartListening()
         print("👂 Aguardando \"\(wakeWords[0])\"... (Ctrl+C para sair)")
     }
@@ -100,6 +141,7 @@ final class VoiceAssistant: NSObject {
     // MARK: - Escuta
 
     private func restartListening() {
+        guard !isPaused else { return }
         lastTranscript = ""
         do {
             try recognizer.startListening()
@@ -113,6 +155,7 @@ final class VoiceAssistant: NSObject {
 
     /// Recupera a escuta após um erro do reconhecedor (ex.: timeout de sessão).
     private func recoverListening() {
+        guard !isPaused else { return }
         guard state == .waitingWakeWord || state == .capturingQuestion else { return }
         if state == .capturingQuestion { avatar.hide() }
         state = .waitingWakeWord

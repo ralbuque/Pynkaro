@@ -10,7 +10,8 @@ Pynkaro é um assistente de voz para macOS (protótipo de linha de comando, Swif
 
 ```bash
 swift build            # compila
-swift run -c release   # roda (interativo: pede nomes de quem sugeriu as notícias, via stdin)
+swift run -c release   # roda em modo desenvolvimento (app de menu bar)
+./make_app.sh          # monta o Pynkaro.app (bundle com Info.plist, recursos e assinatura ad-hoc)
 ```
 
 Não há testes nem linter configurados. O app só roda de fato em macOS (frameworks Speech/AVFoundation/AppKit) e requer permissões de Microfone e Reconhecimento de Fala concedidas ao terminal na primeira execução.
@@ -25,7 +26,8 @@ Não há testes nem linter configurados. O app só roda de fato em macOS (framew
 
 O centro é a máquina de estados em `VoiceAssistant.swift`: `waitingWakeWord → capturingQuestion → thinking → speaking → waitingWakeWord`. Tudo converge para ela; os demais arquivos são satélites plugados por closures.
 
-- `main.swift` — lê os nomes dos sugestores de notícias via stdin, configura `NSApplication` (`.accessory`, sem Dock) e roda o event loop do AppKit. O run loop do AppKit é necessário para a janela do avatar e para os `Timer`s.
+- `PynkaroApp.swift` — entrada do app (SwiftUI `@main`): `MenuBarExtra` cujo ícone reflete o estado, menu (pausar/retomar, sugestores, sair) e a janela dos sugestores de notícias (`@AppStorage` → UserDefaults, lidos pelo `ClaudeClient` a cada pergunta). `AppDelegate` define `.accessory` (sem Dock) e inicia o assistente.
+- `AssistantController.swift` — `ObservableObject` singleton que faz a ponte VoiceAssistant → SwiftUI (`AssistantStatus` com símbolo e rótulo por estado; `pause()`/`resume()`).
 - `SpeechRecognizer.swift` — AVAudioEngine + SFSpeechRecognizer pt-BR (on-device quando disponível). Emite transcrições parciais via `onPartial`. Detalhes críticos: sessões do SFSpeechRecognizer expiram em ~1 min, então `VoiceAssistant` reinicia a escuta a cada 45s (watchdog) e após erros; um contador `generation` invalida callbacks de sessões antigas; a wake word é injetada em `contextualStrings` para favorecer o reconhecimento.
 - Detecção de fim de pergunta: por silêncio — timer rearmado a cada transcrição parcial *alterada* (1,8s com pergunta; 6s sem). A pergunta é o texto após a última ocorrência da wake word no transcript.
 - `ClaudeClient.swift` — Messages API da Anthropic com histórico (máx. 20 mensagens) e ferramenta server-side `web_search` (max_uses 3). O system prompt é recomputado a cada chamada para injetar data/hora locais e inclui: persona bem-humorada, limite estrito de 1 frase, "modo opinião" (perguntas iniciadas com "Na sua opinião" → resposta cômica sem busca) e a resposta fixa sobre quem sugeriu as notícias. Respostas com busca vêm em múltiplos blocos: concatenar apenas os blocos `type == "text"`.

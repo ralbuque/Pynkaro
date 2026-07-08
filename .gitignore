@@ -4,3 +4,4 @@ config.json
 *.xcodeproj
 .swiftpm/
 .vscode/
+Pynkaro.app/

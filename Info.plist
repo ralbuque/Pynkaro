@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Pynkaro</string>
+    <key>CFBundleDisplayName</key>
+    <string>Pynkaro</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.ralbuque.pynkaro</string>
+    <key>CFBundleExecutable</key>
+    <string>Pynkaro</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.1</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>O Pynkaro escuta o microfone para detectar a palavra de ativação e transcrever suas perguntas — tudo localmente.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>O Pynkaro usa o reconhecimento de fala do macOS para transcrever suas perguntas em português.</string>
+</dict>
+</plist>

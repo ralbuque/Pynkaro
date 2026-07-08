@@ -16,7 +16,16 @@ final class ClaudeClient {
     private let apiKey: String
     private let model: String
     private let webSearchEnabled: Bool
-    private let newsSuggesters: [String]
+
+    /// Nomes de quem sugeriu as notícias — definidos na janela
+    /// "Sugestores de notícias" da menu bar (UserDefaults).
+    private var newsSuggesters: [String] {
+        let defaults = UserDefaults.standard
+        return [defaults.string(forKey: "newsSuggester1"),
+                defaults.string(forKey: "newsSuggester2")]
+            .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
 
     /// Montado a cada pergunta para incluir a data/hora atual do Mac.
     private var systemPrompt: String {
@@ -61,8 +70,7 @@ final class ClaudeClient {
         """
     }
 
-    init(newsSuggesters: [String] = []) {
-        self.newsSuggesters = newsSuggesters
+    init() {
         let env = ProcessInfo.processInfo.environment
         apiKey = Config.anthropicKey ?? ""
         if apiKey.isEmpty {

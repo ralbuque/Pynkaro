@@ -47,6 +47,10 @@ final class AvatarWindow {
     private var viewStartOrigin = NSPoint.zero
     private var viewFinalOrigin = NSPoint.zero
 
+    // MARK: Posicionamento
+    private let screenMargin: CGFloat = 24
+    private var windowSize = NSSize.zero
+
     init() {
         // 1) Rig Rive, se avatar.riv existir.
         if let url = AvatarWindow.locateFile("avatar.riv") {
@@ -95,8 +99,9 @@ final class AvatarWindow {
     /// Monta a janela (fixa, na borda inferior direita) e o container com
     /// recorte dentro do qual a view do avatar sobe na entrada.
     private func configureWindow(with view: NSView, size: NSSize) {
-        let margin: CGFloat = 24
+        let margin = screenMargin
         let windowSize = NSSize(width: size.width, height: size.height + margin)
+        self.windowSize = windowSize
 
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: windowSize),
@@ -123,24 +128,36 @@ final class AvatarWindow {
         window.contentView = container
         animatedView = view
 
-        // Canto inferior direito da tela principal.
-        if let screen = NSScreen.main {
-            let frame = screen.visibleFrame
-            window.setFrameOrigin(NSPoint(x: frame.maxX - size.width - margin,
-                                          y: frame.minY))
-        }
         window.alphaValue = 0
         self.window = window
+        positionWindow()
+    }
+
+    /// Posiciona a janela no canto inferior direito da tela escolhida no menu
+    /// ("avatarScreenIndex" em UserDefaults; 0 = tela principal).
+    private func positionWindow() {
+        guard let window else { return }
+        let screens = NSScreen.screens
+        let index = UserDefaults.standard.integer(forKey: "avatarScreenIndex")
+        guard let screen = (index >= 0 && index < screens.count)
+            ? screens[index] : NSScreen.main else { return }
+        let frame = screen.visibleFrame
+        window.setFrameOrigin(NSPoint(x: frame.maxX - windowSize.width - screenMargin,
+                                      y: frame.minY))
     }
 
     // MARK: - Carregamento de arquivos
 
     private static func locateFile(_ name: String) -> URL? {
         let fm = FileManager.default
-        let candidates = [
+        var candidates = [
             URL(fileURLWithPath: fm.currentDirectoryPath).appendingPathComponent(name),
             fm.homeDirectoryForCurrentUser.appendingPathComponent(".config/pynkaro/\(name)")
         ]
+        // Dentro do bundle .app, os recursos são embutidos pelo make_app.sh.
+        if let resources = Bundle.main.resourceURL {
+            candidates.append(resources.appendingPathComponent(name))
+        }
         return candidates.first { fm.fileExists(atPath: $0.path) }
     }
 
@@ -196,7 +213,9 @@ final class AvatarWindow {
     func show() {
         guard let window else { return }
         DispatchQueue.main.async {
-            // Reposiciona a view embaixo (recortada) e sobe até a posição final.
+            // Reposiciona na tela configurada (pode ter mudado no menu) e
+            // recoloca a view embaixo (recortada) para subir até o final.
+            self.positionWindow()
             self.animatedView?.setFrameOrigin(self.viewStartOrigin)
             window.alphaValue = 1
             window.orderFrontRegardless()

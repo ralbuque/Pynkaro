@@ -25,12 +25,22 @@ Protótipo de linha de comando. Fica ouvindo o microfone; ao ouvir **"Píncaro"*
 }
 ```
 
-2. Compile e rode:
+2. Compile e rode (desenvolvimento):
 
 ```bash
 cd ~/Git/Pynkaro
 swift run -c release
 ```
+
+3. Ou monte o aplicativo de verdade (menu bar, sem terminal):
+
+```bash
+./make_app.sh                                  # gera Pynkaro.app
+mkdir -p ~/.config/pynkaro && cp config.json ~/.config/pynkaro/
+mv Pynkaro.app /Applications/                  # opcional
+```
+
+O app vive na **menu bar** (sem ícone no Dock): o ícone muda com o estado (ouvindo/pensando/falando), e o menu permite pausar/retomar a escuta, definir os sugestores de notícias e sair. Rodando como .app, o config.json é lido de `~/.config/pynkaro/` e o avatar vem embutido no bundle.
 
 O `config.json` é procurado no diretório atual e depois em `~/.config/pynkaro/config.json`. As variáveis de ambiente `ANTHROPIC_API_KEY`/`ELEVENLABS_API_KEY` seguem funcionando como fallback para campos vazios.
 
