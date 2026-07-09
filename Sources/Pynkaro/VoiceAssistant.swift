@@ -191,6 +191,7 @@ final class VoiceAssistant: NSObject {
         // Só rearma o timer de silêncio quando o texto realmente mudou.
         guard transcript != lastTranscript else { return }
         lastTranscript = transcript
+        print("📝 Ouvido: \(transcript)")
 
         // A pergunta é tudo que vem depois da última ocorrência da wake word
         // (considerando todas as variantes).
@@ -198,9 +199,18 @@ final class VoiceAssistant: NSObject {
             transcript.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive, .backwards])
         }
         if let last = ranges.max(by: { $0.upperBound < $1.upperBound }) {
+            // Wake word presente: a pergunta é o que vem depois dela.
             question = String(transcript[last.upperBound...])
                 .trimmingCharacters(in: CharacterSet(charactersIn: " ,.!?"))
+        } else {
+            // O reconhecedor finalizou a sentença da wake word e recomeçou a
+            // transcrição do zero (acontece após uma pausa): o texto novo
+            // inteiro é a pergunta.
+            question = transcript
+                .trimmingCharacters(in: CharacterSet(charactersIn: " ,.!?"))
         }
+        // Legenda ao vivo com o que está sendo ouvido.
+        avatar.setCaption(question.isEmpty ? nil : "Você: \(question)")
         armSilenceTimer()
     }
 
@@ -250,6 +260,7 @@ final class VoiceAssistant: NSObject {
 
         print("💬 \(reply)")
         state = .speaking
+        avatar.setCaption(reply)
         // A escuta fica parada enquanto fala — evita que o assistente ouça a si mesmo.
         speaker.speak(reply) { [weak self] in
             guard let self else { return }

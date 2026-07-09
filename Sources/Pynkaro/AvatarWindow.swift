@@ -51,6 +51,10 @@ final class AvatarWindow {
     private let screenMargin: CGFloat = 24
     private var windowSize = NSSize.zero
 
+    // MARK: Legenda (pergunta/resposta)
+    private var captionBox: NSView?
+    private var captionLabel: NSTextField?
+
     init() {
         // 1) Rig Rive, se avatar.riv existir.
         if let url = AvatarWindow.locateFile("avatar.riv") {
@@ -125,6 +129,23 @@ final class AvatarWindow {
         viewFinalOrigin = NSPoint(x: 0, y: margin)
         view.setFrameOrigin(viewStartOrigin)
         container.addSubview(view)
+
+        // Legenda: pílula translúcida sobreposta à base do avatar.
+        let box = NSView()
+        box.wantsLayer = true
+        box.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.62).cgColor
+        box.layer?.cornerRadius = 12
+        box.alphaValue = 0
+        let label = NSTextField(wrappingLabelWithString: "")
+        label.textColor = .white
+        label.font = .systemFont(ofSize: 16, weight: .medium)
+        label.alignment = .center
+        label.maximumNumberOfLines = 6
+        box.addSubview(label)
+        container.addSubview(box, positioned: .above, relativeTo: view)
+        captionBox = box
+        captionLabel = label
+
         window.contentView = container
         animatedView = view
 
@@ -208,6 +229,44 @@ final class AvatarWindow {
         }
     }
 
+    // MARK: - Legenda
+
+    /// Mostra o texto como legenda na base do avatar; nil ou vazio esconde.
+    /// O tamanho da pílula se ajusta ao texto (até 6 linhas).
+    func setCaption(_ text: String?) {
+        DispatchQueue.main.async {
+            guard let box = self.captionBox, let label = self.captionLabel else { return }
+            let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !trimmed.isEmpty else {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.2
+                    box.animator().alphaValue = 0
+                }
+                return
+            }
+
+            label.stringValue = trimmed
+            let maxWidth = self.windowSize.width - 64
+            let textSize = label.cell?.cellSize(
+                forBounds: NSRect(x: 0, y: 0, width: maxWidth, height: 800)
+            ) ?? .zero
+            let width = ceil(min(textSize.width, maxWidth))
+            let height = ceil(textSize.height)
+            label.frame = NSRect(x: 14, y: 9, width: width, height: height)
+            box.frame = NSRect(x: (self.windowSize.width - (width + 28)) / 2,
+                               y: 10,
+                               width: width + 28,
+                               height: height + 18)
+
+            if box.alphaValue < 1 {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.2
+                    box.animator().alphaValue = 1
+                }
+            }
+        }
+    }
+
     // MARK: - Entrada e saída
 
     func show() {
@@ -235,8 +294,11 @@ final class AvatarWindow {
                 window.animator().alphaValue = 0
             }, completionHandler: {
                 window.orderOut(nil)
-                // Garante boca fechada e posição inicial na próxima aparição.
+                // Garante boca fechada, legenda limpa e posição inicial
+                // na próxima aparição.
                 self.setMouth(0)
+                self.captionBox?.alphaValue = 0
+                self.captionLabel?.stringValue = ""
                 self.animatedView?.setFrameOrigin(self.viewStartOrigin)
             })
         }
