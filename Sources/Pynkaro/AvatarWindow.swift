@@ -126,7 +126,7 @@ final class AvatarWindow {
         container.layer?.masksToBounds = true
 
         viewStartOrigin = NSPoint(x: 0, y: -size.height)
-        viewFinalOrigin = NSPoint(x: 0, y: margin)
+        viewFinalOrigin = NSPoint(x: 0, y: 0) // colado na base da tela
         view.setFrameOrigin(viewStartOrigin)
         container.addSubview(view)
 
@@ -162,9 +162,9 @@ final class AvatarWindow {
         let index = UserDefaults.standard.integer(forKey: "avatarScreenIndex")
         guard let screen = (index >= 0 && index < screens.count)
             ? screens[index] : NSScreen.main else { return }
-        let frame = screen.visibleFrame
-        window.setFrameOrigin(NSPoint(x: frame.maxX - windowSize.width - screenMargin,
-                                      y: frame.minY))
+        // frame (e não visibleFrame): borda física da tela, ignorando o Dock.
+        window.setFrameOrigin(NSPoint(x: screen.frame.maxX - windowSize.width - screenMargin,
+                                      y: screen.frame.minY))
     }
 
     // MARK: - Carregamento de arquivos

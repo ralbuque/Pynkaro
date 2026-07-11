@@ -25,6 +25,10 @@ final class VoiceAssistant: NSObject {
     /// Notifica a interface (menu bar) sobre mudanças de estado.
     var onStatusChange: ((AssistantStatus) -> Void)?
 
+    /// Frases que cancelam a captura (avatar some sem consultar o Claude).
+    /// Comparação sem acentos/maiúsculas; vale dita sozinha ou no fim da fala.
+    private let cancelPhrases = ["esquece", "esqueca", "deixa pra la", "deixa para la", "cancela"]
+
     private var state: State = .waitingWakeWord {
         didSet { emitStatus() }
     }
@@ -209,9 +213,37 @@ final class VoiceAssistant: NSObject {
             question = transcript
                 .trimmingCharacters(in: CharacterSet(charactersIn: " ,.!?"))
         }
+        // "Esquece" / "deixa pra lá" / "cancela": aborta sem responder.
+        if isCancelRequest(question) {
+            cancelCapture()
+            return
+        }
+
         // Legenda ao vivo com o que está sendo ouvido.
         avatar.setCaption(question.isEmpty ? nil : "Você: \(question)")
         armSilenceTimer()
+    }
+
+    private func isCancelRequest(_ text: String) -> Bool {
+        let normalized = text
+            .folding(options: [.diacriticInsensitive, .caseInsensitive],
+                     locale: Locale(identifier: "pt_BR"))
+            .lowercased()
+            .trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        return cancelPhrases.contains { normalized == $0 || normalized.hasSuffix(" " + $0) }
+    }
+
+    /// Aborta a captura sem consultar o Claude: o avatar some em silêncio.
+    private func cancelCapture() {
+        guard state == .capturingQuestion else { return }
+        print("🙈 Cancelado (\"esquece\"). Voltando a aguardar.")
+        silenceTimer?.invalidate()
+        recognizer.stopListening()
+        avatar.hide()
+        question = ""
+        lastTranscript = ""
+        state = .waitingWakeWord
+        restartListening()
     }
 
     private func armSilenceTimer() {

@@ -41,6 +41,14 @@ final class ClaudeClient {
             suggestersRule = """
             Se perguntarem quem sugeriu a notícia ou as notícias, responda exatamente: \
             "Essas notícias foram sugeridas por \(names) e várias outras pessoas." \
+            Os nomes atuais são SEMPRE os desta instrução; se a conversa anterior \
+            mencionar nomes diferentes, ignore-os. \
+            Se perguntarem o que você ACHA das pessoas que sugeriram a notícia (ou \
+            "do pessoal que sugeriu"), faça uma crítica curta e bem-humorada a \(names): \
+            zoeira leve e carinhosa, como entre amigos — pode brincar com os nomes, \
+            com o suposto gosto deles para notícias, etc. Nunca seja ofensivo ou cruel; \
+            é deboche afetuoso. Não use a resposta fixa nesse caso, improvise uma nova \
+            piada a cada vez, mencionando os nomes. \
 
             """
         }
@@ -83,7 +91,20 @@ final class ClaudeClient {
         }
     }
 
+    /// Últimos sugestores usados; quando mudam, o histórico é reiniciado para
+    /// o modelo não repetir os nomes antigos que ele mesmo já falou.
+    private var lastSuggesters: [String] = []
+
     func ask(_ question: String, completion: @escaping (Result<String, Error>) -> Void) {
+        let current = newsSuggesters
+        if current != lastSuggesters {
+            if !history.isEmpty {
+                history.removeAll()
+                print("♻️ Sugestores de notícias mudaram; histórico da conversa reiniciado.")
+            }
+            lastSuggesters = current
+        }
+
         history.append(["role": "user", "content": question])
         // Limita o histórico para controlar custo/latência.
         if history.count > 20 {
